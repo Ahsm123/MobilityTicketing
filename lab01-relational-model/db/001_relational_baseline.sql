@@ -22,8 +22,6 @@ create table route_stops (
     stop_id text not null references stops(id),
     stop_sequence integer not null,
     primary key (route_id, stop_sequence),
-    -- Den mindste unikke primærnøgle. stop_id er unødvendig, ud fra antagelserne i dossier,
-    -- som siger, at en rute kan indeholde det samme stop flere gange.
     constraint route_stops_sequence_positive check (stop_sequence > 0)
 );
 
