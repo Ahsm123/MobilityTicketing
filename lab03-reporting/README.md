@@ -1,14 +1,23 @@
 # Lab 03: Where reporting logic runs
 
-## Spørgsmål
+## Formål
 
-Hvor skal daglig captured revenue beregnes: direct query, function, materialized view eller trigger-vedligeholdt tabel?
+Sammenligne de fire metoder til at beregne daily captured revenue, og bestem hvilken en, der skal bruges:
+* sql query
+* function
+* view
+* trigger table
 
 ## Konklusion
 
-Funktionen `captured_revenue_for_day(operator_id, date)`. `payments` er authority, og funktionen læser direkte derfra, så der ikke ligger en kopi, der kan blive stale (MV) eller forkert (trigger). Hvis read cost bliver et problem, skiftes der til en MV med scheduled refresh, men refresh må ikke ligge i en trigger på `payments`. Se [Anbefaling](#anbefaling).
+Valget blev en function: `captured_revenue_for_day(operator_id, date)`.
+Her er authority `payments`, som funktionen læser direkte fra.
+Hvis read cost senere bliver et problem, er planen at bruge et view i stedet
+Refresh skal være et planlagt job, og ikke som trigger på payments.
 
-## Kør det
+Funktionen `captured_revenue_for_day(operator_id, date)`. `payments` er authority, og funktionen læser direkte derfra, så der ikke ligger en kopi, der kan blive stale (MV) eller forkert (trigger). Hvis read cost bliver et problem, skiftes der til en MV med scheduled refresh, men refresh må ikke ligge i en trigger på `payments`. [Begrundelse](#begrundelse).
+
+## Run
 
 ```powershell
 docker compose up -d
@@ -20,11 +29,11 @@ docker compose exec -T postgres psql -U mobility -d mobility -f /lab/reporting_c
 docker compose down -v
 ```
 
-`db/` er slutstanden fra lab 02 (`012_ticketing_integrity.sql` er lab 02's `011`-migration). `migrations/` køres manuelt, så du kan se baseline før de fire mekanismer.
+`db/` er slut tilstanden fra lab 02 (`012_ticketing_integrity.sql` er lab 02's `011`-migration). `migrations/` køres manuelt, for at se baseline før de fire mekanismer.
 
-## Evidence
+## Evidens
 
-Alle tal er for revenue_date 2026-04-29. 
+Alle tal er for revenue_date: 2026-04-29. 
 
 `OP-BUS price/count | OP-METRO price/count`
 
@@ -44,12 +53,12 @@ Alle tal er for revenue_date 2026-04-29.
 - MV oprettes uden data. Første select fejler i stedet for at give nul rækker:
   `ERROR: materialized view "daily_captured_revenue" has not been populated`, SQLSTATE 55000.
   Rapporten er utilgængelig og vil få appen til at crashe.
-- Funktionen tager én operator og én dato, så caller skal kende operator-listen og kalde N gange.
+- Funktionen tager én operator og én dato, så caller skal kende id på alle operators og kalde N gange.
   Direct query giver alle operatører i ét resultat.
 
-- Trigger kører ved hvert insert selvom status ikke er captured
+- Trigger kører ved hvert insert selvom status ikke er Captured.
 
-- UPDATE fra 'failed' til 'captured' bumpede ikke trigger tabellen, og MV var stadig stale før update.
+- UPDATE fra 'Failed' til 'Captured' opdaterede ikke trigger tabellen, og MV var stadig stale før update.
 - Kan være trigger skal være på alle ændringer, og i stedet trigger en refresh på MV?
 
 ### Uenighed mellem to mekanismer
@@ -63,9 +72,9 @@ Da payments er authority, er det MV der er korrekt, og trigger-tabellen der er f
 
 1. Check constraint: Not null, FK, Checks, Unique
 2. Trigger executor, opdaterer derived view, hvis den fejler
-   vil transaktionen rollback og fejle insert.
+   vil transaktionen blive rullet tilbage og fejle insert.
 3. `payments` og `daily_revenue_by_operator` får write lock,
-   og resten read lock fra joinet
+   og resten read lock fra joinet.
 4. Returnerer 0 / 1 med antal affected rows.
 5. Direct query + function + trigger table vil afspejle det med det samme.
 6. Materialized view vil være stale indtil det er refreshed.
@@ -83,25 +92,22 @@ Da payments er authority, er det MV der er korrekt, og trigger-tabellen der er f
 | Operational complexity | Needs to know the query  | Harder to debug          | Can become slow with size, hard to debug | Needs to be maintained if something changes, like an extra status, hard to debug                        |
 | Authority              | Payments                 | Payments                 | Payments                                 | Payments                                                                                                |
 
-### Anbefaling
+### Begrundelse
 
 Payments er authority. Vi har egentlig kun brug for query. Funktionen er en wrapped query. MV og trigger er derived
 kopier.
-Vil anbefale funktionen, fordi det er samme SQL for alle callers/apps, så de bare skal kalde den, istedet for at bygge
-selv.
-Derved har vi ikke en kopi liggende som kan være stale (MV) eller ikke korrekt (trigger), og vi styrer logikken et
-centralt sted.
-Funktionen tager operator og data, som passer med access patterns som siger rapport pr. operatør.
+Valget er funktionen, fordi det er samme SQL for alle callers/apps, i stedet for at bygge
+deres egen query.
+Derved har vi ikke en kopi liggende som kan være stale (MV) eller ikke korrekt (trigger), og logikken er ét sted.
+Funktionen tager operator_id og date, som passer med access patterns som siger rapport pr. operatør.
 
-Grunden til vi ikke vælger de derived tables lige nu, er fordi read cost ikke er et problem på nuværende tidspunkt.
-Trigger tabellen kan som den er lige nu, ikke garantere at data er korrekt og MV kan blive stale.
-Forskellen på de to er, at stale kan vi opdage og rette, vi opdager ikke forkert data.
+Grunden til vi ikke vælger et view er fordi read cost ikke er et problem på nuværende tidspunkt.
+Trigger tabellen kan i nuværende form, ikke garantere at data er korrekt og MV kan blive stale.
 
-Hvis read cost bliver et problem
+Hvis read cost bliver et problem er planen at:
 
-- Skift til MV. Reporting er sat til eventual i access pattern så det er ok.
-- Authority forbliver payments. Freshness: scheduled refresh + timestamp for sidste kørsel, så læseren kan se alder.
+- Skifte til MV - access pattern tillader eventually consistent på reporting.
+- Authority forbliver payments. Freshness: scheduled refresh + timestamp for sidste refresh.
   Rebuild: refresh fra payments.
-- Trigger skal også reagere på refunds hvis den skal bruges.
-- Refresh må ikke ligge i en trigger på payments, så betaler den der køber en billet for read optimering, og en
-  refresh der fejler vil annullere betalingen.
+- Trigger skal også reagere på updates hvis den skal bruges.
+- Refresh må ikke ligge i en trigger på payments, for så bliver en insert bundet op på at det lykkedes.
