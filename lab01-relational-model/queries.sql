@@ -1,4 +1,4 @@
-﻿-- next 20 trips for a route after a given time - order by, limit
+﻿-- Viser de næste 20 planlagte ture på en rute efter et givent tidspunkt
 select *
 from trips as t
 where route_id = 'LINE-M2'
@@ -10,7 +10,7 @@ limit 20;
 -- TRIP-M2-20260429-0800 - 2026-04-29T08:00:00Z - Scheduled
 -- TRIP-M2-20260429-1200 - 2026-04-29T00:00:00Z - Scheduled
 
--- stops on a route, sort stop sequence
+-- Stops på en rute, sorteret efter stop sekvens
 select stops.name, stop_id, stop_sequence
 from route_stops
          join stops on stops.id = route_stops.stop_id
@@ -21,8 +21,7 @@ order by stop_sequence asc;
 -- Kongens Nytorv - 2
 -- Copenhagen Airport - 3
 
-
--- all routes with trip count on a date, with routes with no trips, left join, date filter in on
+-- Viser alle ruter med antal trips, inklusiv ruter uden trips, på en given dato.
 select routes.id, count(trips.id)
 from routes
          left join trips on trips.route_id = routes.id

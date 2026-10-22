@@ -1,8 +1,11 @@
 # Lab 01: Relational model
 
-## Spørgsmål
+## Formål
 
-Hvad er den mindste relationelle model, der understøtter rutevedligehold og opslag af kommende afgange?
+Implementer den mindste relationelle model som understøtter:
+* route maintaince
+* upcoming-trip queries
+
 
 ## Konklusion
 
