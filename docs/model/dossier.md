@@ -16,31 +16,28 @@
 
 # Regler
 Reglerne er markeret fra A-D, som beskriver hvor de kan håndhæves.
-- A: True/False og kan valideres direkte på rækken med et CHECK eller NOT NULL.
-- B: Kan valideres i samme tabel med UNIQUE eller UNIQUE INDEX.
-- C: Kan valideres i en anden tabel med FOREIGN KEY.
-- D: Validering kræver data som ikke er tilgængelige i databasen, og skal valideres i applikationen.
+- A: Kan håndhæves direkte med en kolonne- eller tabel-constraint (NOT NULL, CHECK, FOREIGN KEY).
+- B: Kan håndhæves med en unique- eller exclusion-regel (UNIQUE, partial UNIQUE INDEX, EXCLUDE).
+- C: Afhænger af mere end én række eller et eksternt system, og kræver trigger eller applikation.
+- D: Er tvetydig og kræver en domænebeslutning, før den kan håndhæves.
 
 1. Antallet af pladser kan ikke være negativ.
    - A: Kan håndhæves med CHECK (capacity >= 0).
 
 2. Antal reserverede pladser kan ikke være negativt eller større end antal pladser.
-   - A: Kan håndhæves med CHECK (reserved >= 0 AND reserved <= capacity).
+   - A: Kan håndhæves med CHECK (reserved_seats BETWEEN 0 AND capacity), fordi begge kolonner ligger på samme række i trips.
 
 3. Priser og betalingsbeløb kan ikke være negative.
    - A: Kan håndhæves med CHECK (price >= 0) og CHECK (amount >= 0).
 
 4. En billet skal have en reference til en eksisterende bruger, tur og et produkt.
-   - A: Kan håndhæves med NOT NULL på de tre kolonner i rækken.
-   - C: Kan håndhæves af FOREIGN KEY til de tre tabeller users, trips og products.
+   - A: Kan håndhæves med NOT NULL og FOREIGN KEY til users, trips og products.
 
 5. En betaling skal referere til en eksisterende billet.
-   - A: Kan håndhæves med NOT NULL på kolonnen ticket_id.
-   - C: Kan håndhæves med FOREIGN KEY til tickets-tabellen.
+   - A: Kan håndhæves med NOT NULL og FOREIGN KEY på ticket_id til tickets.
 
 6. Valideringer skal referere til en eksisterende billet.
-   - A: Kan håndhæves med NOT NULL på kolonnen ticket_id.
-   - C: Kan håndhæves med FOREIGN KEY til tickets-tabellen.
+   - A: Kan håndhæves med NOT NULL og FOREIGN KEY på ticket_id til tickets.
 
 7. Billetkoder skal være unikke.
    - B: Kan håndhæves med UNIQUE på kolonnen code.
@@ -55,11 +52,12 @@ Reglerne er markeret fra A-D, som beskriver hvor de kan håndhæves.
    - B: Kan håndhæves med partial UNIQUE INDEX på external_payment_reference WHERE status IN ('Captured', 'Refunded').
 
 11. En brugers email skal være unik.
-   - B: Kan håndhæves med UNIQUE på email kolonnen.
+   - B: Kan håndhæves med UNIQUE på email kolonnen. Skal den være case-insensitive, bruges UNIQUE INDEX på lower(email).
 
 12. En brugt billet kan ikke valideres igen.
-   - B: Kan håndhæves med UNIQUE på ticket_id kolonnen i validations
-   - D: Kan håndhæves af Trigger/applikation
+   - D: Det er ikke besluttet, hvornår en billet er brugt. Antal tilladte valideringer afhænger af produkt og transportmiddel.
+   - Når det er besluttet, bliver reglen C, fordi den skal tælle rækker i validations og slå op i products (trigger/applikation).
+     UNIQUE på ticket_id (B) passer kun, hvis svaret er præcis én validering per billet.
 
 13. Produkter, billetter og betalinger skal have en gyldig valuta.
    - A: Kan håndhæves med NOT NULL og CHECK (regex) på de tre tabeller.
