@@ -1,0 +1,22 @@
+services:
+  mongo:
+    image: mongo:8.0
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - .:/scripts:ro
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
+    volumes:
+      - .:/scripts:ro
+
+  redisinsight:
+    image: redis/redisinsight:2.70
+    ports:
+      - "127.0.0.1:5540:5540"
+    depends_on:
+      - redis
