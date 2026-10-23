@@ -1,29 +1,92 @@
 # Lab 04: Product identity migration
 
-## Spørgsmål
+## Formål
 
-Hvordan giver man produkter et stabilt ID uden at bryde billetter, mens gammel og ny kode kører samtidig?
+Udfase product_code fra tickets og bruge product_id i stedet.
+Samtidig skal dataintegriteten bibeholdes i gennem migrationen.
+* add product_id without removing product_code.
+* copy the existing ticket references to the new column.
+* make sure both od and new data can still be read.
+* verify that the migration worked.
+* finally remove the old way of referencing products.
 
 ## Konklusion
+030: 
+- Tilføjer id til products, med en random uuid og NOT NULL.
+- Tilføjer product_id til tickets, og tilføjer en FOREIGN key constraint
+med not valid, hvilket betyder, at det kun gælder for nye rækker.
 
-Expand, backfill, contract: 030 tilføjer `product_id` ved siden af `product_code`, 031 backfiller idempotent (anden kørsel giver `UPDATE 0`), 032 gør ID'et påkrævet (og den gamle writer fejler), og 033 dropper koden. Priser og valuta er uændrede fra før 030 til efter 033 (afsnit 11). Triggeren `add_product_code()` skal droppes i samme transaktion som 033, ellers er der et vindue, hvor new_writer fejler (afsnit 10).
+031:
+- Backfiller product_id i tickets, med det nye uuid i products, ud fra til tilsvarende product_code.
 
-Mangler: en eksplicit rollout-beslutning (hvornår stoppes de gamle writers, og kan man rulle tilbage?).
+032: 
+- Gør product_id til et krav på tickets, hvilket betyder, at den gamle writer
+nu ikke virker mere.
 
-## Kør det
+033:
+- Dropper product_code fra tickets
+
+Priser og valuta er uændrede fra 030-033, som det kan ses i punkt 11.
+
+Det er vigtigt at triggeren add_product_code bliver droppet i samme transaktion som 033, ellers er der et vindue, hvor den nye writer kan fejle - se punkt 10.
+
+Plan for migration:
+
+Punkterne under et step i rækkefølgen:
+* Hvad der skal gøres.
+* Gate før næste step kan køres.
+* Rollback.
+
+1. 
+* 030 + product_code_trigger i samme deploy.
+* Gamle writer og reader virker stadig
+* Drop trigger, product_id og products.id.
+
+2. 
+* Deploy new_reader overalt.
+* Skal kunne læse både gamle og nye rækker.
+* Deploy old_reader igen. Det virker, fordi product_code stadig bliver udfyldt.
+
+3. 
+* Deploy new_writer.
+* Nye rækker får både id og code.
+* Skift tilbage til old_writer.
+
+4. 
+* Backfill med 031.
+* verify.sql skal give 0 rækker.
+* Backfill er idempotent, så vi behøver ikke at rulle tilbage.
+
+5. 
+* Stop alle old_writer, kør 031 igen og derefter verify.
+* verify giver 0 rækker, ellers får vi problemet fra punkt 8 hvor en ticket ikke har fået sat product_id.
+* Start old_writer igen.
+
+6. 
+* Kør 032 så product_id er NOT NULL og FK valideres.
+* Holde øje med at der ikke kommer fejl, og tjekke at der ikke kører nogle
+old_readers.
+
+7. 
+* Kør 033 og fjern product_code_trigger samtidig.
+* Point of no return for gamle clients.
+* Ingen rollback. Kan tilføje product_code igen og backfill products.code.
+Det er ikke et problem, fordi products.code stadig findes.
+
+## Run
 
 ```powershell
 docker compose up -d
 docker compose exec -T postgres psql -U mobility -d mobility -v ON_ERROR_STOP=1 -f /lab/scripts/baseline.sql
 docker compose exec -T postgres psql -U mobility -d mobility -v ON_ERROR_STOP=1 -f /lab/migrations/030_expand_product_identity.sql
-# ... resten i rækkefølgen fra afsnittene herunder
+# resten i rækkefølgen fra afsnittene herunder
 docker compose exec -T postgres psql -U mobility -d mobility -v ON_ERROR_STOP=1 -f /lab/tests/test_suite.sql
 docker compose down -v
 ```
 
 `db/` er slutstanden fra lab 03 (lab 02's integrity og lab 03's 020–022). `migrations/` (030–033) og `scripts/` køres manuelt, ét trin ad gangen. Test suiten kræver, at 030–033 er kørt.
 
-## Evidence
+## Evidens
 
 ### Noter
 
