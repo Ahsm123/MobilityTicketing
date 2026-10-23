@@ -2,17 +2,25 @@
 
 Status: i gang.
 
-## Spørgsmål
+## Formål
 
-Hvordan læser man et live departure board effektivt, og hvordan bevarer en publiceret plan sine oprindelige værdier, når ruter omdøbes og afgange aflyses?
+Live board skal vise opdaterede oplysninger om afgangene. Dispatch skal samtidig have gemt en kopi hver gang der bliver publiceret en køreplan.
+Bookingsystemet skal altid kontrollere, om der stadig er ledige pladser på en afgang, også selvom passageren ser på forældet data på live board.
+
+* Live board: Show current route names, scheduled-trip counts and next departures.
+* Published plan: Keep the values shown when the plan was published.
+* Booking: Check the current trip status and handle repeated requests.
 
 ## Konklusion indtil nu
 
-- Live board: projektion direkte til DTO i én query. Det giver 1 command og 0 materialiserede entities, både ved 4/9 og 200/100.000 (baseline: 201 commands og 100.200 entities). Se [evidence](docs/evidence/lecture07/README.md).
-- Request (A) frem for summary table (B): kontrakten kræver vilkårlige vinduer op til 24 timer, så B skal alligevel beregne. A har én source of truth.
-- Published plan: header- og detail-rækker med kopierede værdier, så en senere rename eller cancel ikke ændrer planen. Se [design](docs/design.md).
+- Live board: Projection til dto'en RouteOverviewDto direkte i én query. Det giverf 1 command og 0 materialized entities
+uanset om det er 4 ruter og 9 trips, eller 200 ruter og 100K trips. Baseline med skalering var 201 commands og 100.200 entities.
+Se [evidence](docs/evidence/lecture07/README.md).
 
-## Kør det
+- Request (A) frem for summary table (B): kontrakten kræver vilkårlige vinduer op til 24 timer, så B skal alligevel beregne. A har én source of truth.
+- Published plan: header- og detail-rækker med kopierede værdier, så et rename eller cancel ikke ændrer planen. Se [design](docs/design.md).
+
+## Run
 
 Build a live departure board, saved dispatch plans and booking operations. The [application contract](docs/contract.md) defines the required behavior.
 

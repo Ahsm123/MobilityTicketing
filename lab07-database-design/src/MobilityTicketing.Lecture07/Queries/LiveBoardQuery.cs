@@ -6,7 +6,7 @@ namespace MobilityTicketing.Lecture07.Queries;
 
 public class LiveBoardQuery
 {
-    public static async Task<List<RouteOverviewDto>> ExecuteAsync(LectureDbContext db, DateTime fromUtc, DateTime toUtc, CancellationToken ct = default)
+    public static async Task<List<RouteOverviewDto>> ExecuteAsync(LectureDbContext db, DateTime fromUtc, DateTime toUtc, CancellationToken ct)
     {
         LabWindow.Validate(fromUtc, toUtc);
         var routes = await db.Routes
