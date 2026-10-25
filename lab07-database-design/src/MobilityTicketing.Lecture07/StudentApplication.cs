@@ -1,3 +1,4 @@
+using MobilityTicketing.Lecture07.Commands;
 using MobilityTicketing.Lecture07.Contracts;
 using MobilityTicketing.Lecture07.Data;
 using MobilityTicketing.Lecture07.Diagnostics;
@@ -21,9 +22,9 @@ public sealed class StudentApplication(string connection, TimeProvider? clock = 
         return await LiveBoardQuery.ExecuteAsync(context, window.FromUtc, window.ToUtc, ct);
     }
     public Task<CancelResult> CancelTripAsync(string tripId, CancellationToken ct = default) =>
-        throw new NotImplementedException("Implement trip cancellation.");
+        CancelTripCommand.ExecuteAsync(Connection, tripId, ct);
     public Task<RenameResult> RenameRouteAsync(string routeId, string name, CancellationToken ct = default) =>
-        throw new NotImplementedException("Implement route renaming.");
+        RenameRouteCommand.ExecuteAsync(Connection, routeId, name, ct);
     public Task<BookingResult> BookTripAsync(string tripId, string requestId, CancellationToken ct = default) =>
         throw new NotImplementedException("Implement booking and request retries.");
     public Task<PublishResult> PublishSnapshotAsync(string snapshotId, TimeWindow window, CancellationToken ct = default) =>

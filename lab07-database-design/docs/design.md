@@ -38,7 +38,7 @@ Commands:
       writes: tx [ lock trip row, update status ] commit
 
   RenameRouteAsync(id, name)
-      writes: tx [ lock route row, update name ] commit
+      writes: tx [ key: route:id, update name ] commit
 
   BookTripAsync(trip, request)
       writes: tx key=req [
