@@ -5,7 +5,7 @@ namespace MobilityTicketing.Lecture07.Commands;
 
 public static class CancelTripCommand
 {
-    public static Task<CancelResult> ExecuteAsync(string connection, string tripId, CancellationToken ct = default)
+    public static Task<CancelResult> ExecuteAsync(string connection, string tripId, CancellationToken ct)
     {
         DatabaseSession.RequireText(tripId, "Trip ID");
 

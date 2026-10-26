@@ -26,7 +26,7 @@ public sealed class StudentApplication(string connection, TimeProvider? clock = 
     public Task<RenameResult> RenameRouteAsync(string routeId, string name, CancellationToken ct = default) =>
         RenameRouteCommand.ExecuteAsync(Connection, routeId, name, ct);
     public Task<BookingResult> BookTripAsync(string tripId, string requestId, CancellationToken ct = default) =>
-        throw new NotImplementedException("Implement booking and request retries.");
+        BookTripCommand.ExecuteAsync(Connection, tripId, requestId, Clock, ct);
     public Task<PublishResult> PublishSnapshotAsync(string snapshotId, TimeWindow window, CancellationToken ct = default) =>
         throw new NotImplementedException("Design the snapshot storage and implement publication.");
     public Task<PublishedSnapshot> ReadSnapshotAsync(string snapshotId, CancellationToken ct = default) =>
