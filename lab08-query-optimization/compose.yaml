@@ -1,0 +1,26 @@
+name: mobility-l08
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: mobility_l08
+      POSTGRES_USER: mobility
+      POSTGRES_PASSWORD: mobility
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U mobility -d mobility_l08" ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - labdata:/var/lib/postgresql/data
+      - .:/lab:ro
+  pgweb:
+    image: sosedoff/pgweb
+    environment:
+      PGWEB_DATABASE_URL: postgres://${POSTGRES_USER:-mobility}:${POSTGRES_PASSWORD:-mobility}@postgres:5432/mobility_l08?sslmode=disable&search_path=lab08
+    ports:
+      - "127.0.0.1:8082:8081"
+    depends_on:
+      postgres: { condition: service_healthy }
+volumes:
+  labdata:

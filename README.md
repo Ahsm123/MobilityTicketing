@@ -13,6 +13,7 @@ Hver lab-mappe kører alene med sin egen `compose.yaml` og har en README med sp�
 | [05](./lab05-mongodb-search/) | Journey search som dokumenter | MongoDB |
 | [06](./lab06-redis-cache/) | Cache-aside foran journey search | Redis, MongoDB, .NET |
 | [07](./lab07-database-design/) | Live board, snapshots og bookings (i gang) | PostgreSQL, EF Core |
+| [08](./lab08-query-optimization/) | Departure search og validation history (query optimization) | PostgreSQL |
 
 Fælles domænemodel: [`docs/model/`](./docs/model/) (dossier, access patterns, integrity map og diagrammer).
 
