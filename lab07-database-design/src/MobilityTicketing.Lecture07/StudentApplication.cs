@@ -28,7 +28,10 @@ public sealed class StudentApplication(string connection, TimeProvider? clock = 
     public Task<BookingResult> BookTripAsync(string tripId, string requestId, CancellationToken ct = default) =>
         BookTripCommand.ExecuteAsync(Connection, tripId, requestId, Clock, ct);
     public Task<PublishResult> PublishSnapshotAsync(string snapshotId, TimeWindow window, CancellationToken ct = default) =>
-        throw new NotImplementedException("Design the snapshot storage and implement publication.");
-    public Task<PublishedSnapshot> ReadSnapshotAsync(string snapshotId, CancellationToken ct = default) =>
-        throw new NotImplementedException("Implement the published-plan query.");
+        PublishSnapshotCommand.ExecuteAsync(Connection, snapshotId, window, Clock, Hooks.BeforePublishCommit, ct);
+    public async Task<PublishedSnapshot> ReadSnapshotAsync(string snapshotId, CancellationToken ct = default)
+    {
+        await using var context = CreateContext();
+        return await SnapshotQuery.ExecuteAsync(context, snapshotId, ct);
+    }
 }
