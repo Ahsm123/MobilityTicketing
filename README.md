@@ -14,12 +14,13 @@ Hver lab-mappe kører alene med sin egen `compose.yaml` og har en README med sp�
 | [06](./lab06-redis-cache/) | Cache-aside foran journey search | Redis, MongoDB, .NET |
 | [07](./lab07-database-design/) | Live board, snapshots og bookings (i gang) | PostgreSQL, EF Core |
 | [08](./lab08-query-optimization/) | Departure search og validation history (query optimization) | PostgreSQL |
+| [09](./lab09-booking-concurrency/) | Sidste plads og idempotente retries ved samtidige bookings | PostgreSQL |
 
 Fælles domænemodel: [`docs/model/`](./docs/model/) (dossier, access patterns, integrity map og diagrammer).
 
 ## Kørsel
 
-Gå ind i lab-mappen og kør `docker compose up -d`. Lab 01–06 bruger de samme host-porte (5432, 8080, 27017, 6379), så kør én lab ad gangen, og stop den med `docker compose down -v`.
+Gå ind i lab-mappen og kør `docker compose up -d`. Lab 01–06 bruger de samme host-porte (5432, 8080, 27017, 6379), så kør én lab ad gangen, og stop den med `docker compose down -v`. Lab 09 eksponerer ingen host-port.
 
 # Compulsory Assignment 1 review guide
 
