@@ -43,7 +43,7 @@ the initial stub.
 ### Open a database session
 
 ```sh
-docker compose exec postgres psql -X -U mobility -d mobility_l09 -v ON_ERROR_STOP=1 -v VERBOSITY=verbose
+docker compose exec postgres psql -P pager=off -X -U mobility -d mobility_l09 -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -v "PROMPT1=[%p]%x%# "
 ```
 
 Run this command in each terminal when multiple sessions are needed. At the
