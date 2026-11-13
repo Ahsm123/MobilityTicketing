@@ -1,5 +1,5 @@
 -- Live view for lab09. Run in its own terminal:
---   docker compose exec postgres bash -c 'while :; do clear; psql -XqU mobility -d mobility_l09 -P pager=off -f /lab/watch.sql; sleep 1; done'
+--   docker compose exec postgres bash -c "while :; do clear; psql -XqU mobility -d mobility_l09 -P pager=off -f /lab/watch.sql; sleep 1; done"
 -- This watcher is its own session: it sees COMMITTED data only.
 -- A row whose xmax equals a session's xid is locked/updated by that open transaction.
 

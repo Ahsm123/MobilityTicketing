@@ -41,7 +41,6 @@ before resetting or running checks. The checks fail while `sql/book.sql` contain
 the initial stub.
 
 ### Open a database session
-
 ```sh
 docker compose exec postgres psql -P pager=off -X -U mobility -d mobility_l09 -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -v "PROMPT1=[%p]%x%# "
 ```
@@ -56,6 +55,13 @@ Run this command in each terminal when multiple sessions are needed. At the
 Use `\i /lab/sql/filename.sql` to run a SQL file. Files in this directory are
 mounted at `/lab` inside the container. Use `\q` to exit. After an error inside a
 transaction, run `ROLLBACK;` before starting another transaction.
+
+Live view of sessions, trips and bookings (own terminal, refreshes every second;
+stop with Ctrl+C before closing the window):
+
+```sh
+docker compose exec postgres bash -c "while :; do clear; psql -XqU mobility -d mobility_l09 -P pager=off -f /lab/watch.sql; sleep 1; done"
+```
 
 ### Files
 
