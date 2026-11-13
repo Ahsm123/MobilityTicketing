@@ -10,7 +10,7 @@
 | 3.3 | read committed | A read, B read, A commit, B commit                                 | B                  | B venter på A, selvom tx forsøger at booke et andet trip                 | 2        | 2        |
 | 3.4 | read committed | A read, B read, A rollback, B commit                               | B                  | B venter på A som i 3.3                                                  | 1        | 1        |
 | 3.5 | read committed | A begin, A book, B unsafe read, B unsafe write, A commit, B commit | B                  | B venter nu ikke med at læse, men venter stadig på at kunne update       | 1        | 2        |
-|     |                |                                                                    |                    |                                                                          |          |          |
+| 3.6 | read committed | A T-LAST, B T-OTHER, A T-OTHER, B T-LAST                           | A                  | ERROR:  40P01: deadlock detected                                  |          |          |
 |     |                |                                                                    |                    |                                                                          |          |          |
 |     |                |                                                                    |                    |                                                                          |          |          |
 |     |                |                                                                    |                    |                                                                          |          |          |
@@ -94,4 +94,5 @@
 - B ventede altså på A, men fik sin værdi fra den unsafe-read, hvilket var seen_reserved +1, hvilket var 0, fordi read ikke ventede på A var færdig.
 - Advisory lock kan ikke beskytte mod kode der ikke tager låsen.
 
-# 3.6: Advisory-lock - A rollback
+# 3.6: Deadlock
+- A forsøger først af få låsen på den række B har row-lock på, herefter forsøger B at få den row som A har.
