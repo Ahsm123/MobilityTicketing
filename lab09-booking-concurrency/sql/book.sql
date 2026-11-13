@@ -15,7 +15,6 @@ DECLARE
     v_capacity int;
     v_trip_key int = CASE p_trip_id WHEN 'T-LAST' then 1 WHEN 'T-TWO' then 2 WHEN 'T-CANCELLED' then 3 WHEN 'T-OTHER' then 4 ELSE NULL END;
 BEGIN
-    PERFORM pg_advisory_xact_lock(9009, v_trip_key);
     SELECT reserved_seats, capacity
         INTO v_seen_reserved, v_capacity
     FROM lab09.trips

@@ -1,0 +1,24 @@
+﻿\if :can_book
+UPDATE lab09.trips
+SET reserved_seats = :seen_reserved + 1
+WHERE id = :'trip_id'
+  AND reserved_seats = :seen_reserved
+  AND status = 'Scheduled'
+  AND reserved_seats < capacity;
+
+SELECT :ROW_COUNT = 1 AS ok \gset
+
+\if :ok
+INSERT INTO lab09.bookings (request_id, passenger_id, trip_id)
+VALUES (:'request_id', :'passenger_id', :'trip_id')
+RETURNING id;
+
+COMMIT;
+\else
+\echo Reservation failed: trip values have changed.
+ROLLBACK;
+\endif
+\else
+\echo The read found no available seat. No booking was written.
+ROLLBACK;
+\endif
