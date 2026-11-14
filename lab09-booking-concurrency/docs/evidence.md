@@ -1,29 +1,32 @@
-| #   | Isolation       | Order                                                              | Waits                | Errors & State                                                                | Reserved | Bookings |
-|-----|-----------------|--------------------------------------------------------------------|----------------------|-------------------------------------------------------------------------------|----------|----------|
-| 1   | read committed  | A read, B read, A write + commit, B write + commit                 | None                 | None                                                                          | 1        | 2        |
-| 1.1 | read committed  | A read, B read, A write + commit, B write                          | None                 | 23514 violates "trips_check"                                                  | 1        | 1        |
-| 2   | read committed  | A read, B read, A update, b update, A commit, B commit             | B waits              | Så snart A committer, returnerer B INSERT 0 0                                 | 1        | 1        |
-| 2.1 | read committed  | A begin + book, B begin + book, A commit, B rollback               | B waits              | Når a committer giver B: ERROR:  P0001: No seat available on trip T-LAST      | 1        | 1        |
-| 2.2 | read committed  | A begin + book, B begin + book, A rollback, B commit               | B waits              | Når a aborter, får B en returværdi, og er klar til at committe.               | 1        | 1        |
-| 3.1 | read committed  | A read + lock, B read, A book, A commit                            | B waits after read   | Når a committer, returnere B No seat available on trip                        | 1        | 1        |
-| 3.2 | read committed  | A read + lock, B read, A book + rollback, B book                   | None                 | B venter ikke på A, begge booker                                              | 1        | 1        |
-| 3.3 | read committed  | A read, B read, A commit, B commit                                 | B                    | B venter på A, selvom tx forsøger at booke et andet trip                      | 2        | 2        |
-| 3.4 | read committed  | A read, B read, A rollback, B commit                               | B                    | B venter på A som i 3.3                                                       | 1        | 1        |
-| 3.5 | read committed  | A begin, A book, B unsafe read, B unsafe write, A commit, B commit | B                    | B venter nu ikke med at læse, men venter stadig på at kunne update            | 1        | 2        |
-| 3.6 | read committed  | A T-LAST, B T-OTHER, A T-OTHER, B T-LAST                           | A                    | ERROR:  40P01: deadlock detected                                              |          |          |
-| 4.1 | read committed  | A read, B read, A write, A commit, B write, B rollback             | B                    | Reservation failed: trip values have changed                                  | 1        | 1        |
-| 4.2 | read committed  | B rollback, B read, B write, B commit                              |                      | B læser værdien igen og kan booke                                             | 2        | 2        |
-| 4.3 | read committed  | A read, B read, A write, B write, A rollback, B commit             | B waits before write | B venter på A slipper ved roillback                                           | 1        | 1        |
-| 5.1 | repeatable read | A read, B read, A write, A commit, B write                         | None                 | ERROR: 40001: could not serialize access due to concurrent update             | 1        | 1        |
-| 5.2 | repeatable read | B rollback, B read                                                 | None                 | Reserved: 1, can_book: f                                                      | 1        | 1        |
-| 5.3 | repeatable read | A read, B read, A write, commit, B write, B retry write            | B                    | Først 40001, booker ved retry                                                 | 1        | 2        |
-| 5.4 | serializable    | A read, B read, A write, commit, B write, rollback, read, write    | None                 | Først 40001, retry: The read found no available seat. No booking was written. | 1        | 1        |
-| 6.1 | read committed  | A book, A book                                                     |                      | Første returner 1, anden returnerer 1                                         | 1        | 1        |
-| 6.2 | read committed  | A book, B book, A commit                                           | B                    | B venter på A, så snart A committer, returnerer B samme id: 2                 | 1        | 1        |
-| 6.3 | read commited   | A book - samme request_id, anden passenger                         |                      | P0001: Passenger information does not match repeat-A                          | 1        | 1        |
-| 6.4 | read committed  | A book -samme request_id, andet trip                               |                      | P0001: Passenger information does not match repeat-A                          | 1        | 1        |
-| 6.5 |                 | reset, load, check                                                 |                      | Single-session checks passed. Existing experiment data was restored.          |          |          |
-|     |                 |                                                                    |                      |                                                                               |          |          |
+| #   | Isolation       | Order                                                              | Waits                | Errors & State                                                                             | Reserved | Bookings |
+|-----|-----------------|--------------------------------------------------------------------|----------------------|--------------------------------------------------------------------------------------------|----------|----------|
+| 1   | read committed  | A read, B read, A write + commit, B write + commit                 | None                 | None                                                                                       | 1        | 2        |
+| 1.1 | read committed  | A read, B read, A write + commit, B write                          | None                 | 23514 violates "trips_check"                                                               | 1        | 1        |
+| 2   | read committed  | A read, B read, A update, b update, A commit, B commit             | B waits              | Så snart A committer, returnerer B INSERT 0 0                                              | 1        | 1        |
+| 2.1 | read committed  | A begin + book, B begin + book, A commit, B rollback               | B waits              | Når a committer giver B: ERROR:  P0001: No seat available on trip T-LAST                   | 1        | 1        |
+| 2.2 | read committed  | A begin + book, B begin + book, A rollback, B commit               | B waits              | Når a aborter, får B en returværdi, og er klar til at committe.                            | 1        | 1        |
+| 3.1 | read committed  | A read + lock, B read, A book, A commit                            | B waits after read   | Når a committer, returnere B No seat available on trip                                     | 1        | 1        |
+| 3.2 | read committed  | A read + lock, B read, A book + rollback, B book                   | None                 | B venter ikke på A, begge booker                                                           | 1        | 1        |
+| 3.3 | read committed  | A read, B read, A commit, B commit                                 | B                    | B venter på A, selvom tx forsøger at booke et andet trip                                   | 2        | 2        |
+| 3.4 | read committed  | A read, B read, A rollback, B commit                               | B                    | B venter på A som i 3.3                                                                    | 1        | 1        |
+| 3.5 | read committed  | A begin, A book, B unsafe read, B unsafe write, A commit, B commit | B                    | B venter nu ikke med at læse, men venter stadig på at kunne update                         | 1        | 2        |
+| 3.6 | read committed  | A T-LAST, B T-OTHER, A T-OTHER, B T-LAST                           | A                    | ERROR:  40P01: deadlock detected                                                           |          |          |
+| 4.1 | read committed  | A read, B read, A write, A commit, B write, B rollback             | B                    | Reservation failed: trip values have changed                                               | 1        | 1        |
+| 4.2 | read committed  | B rollback, B read, B write, B commit                              |                      | B læser værdien igen og kan booke                                                          | 2        | 2        |
+| 4.3 | read committed  | A read, B read, A write, B write, A rollback, B commit             | B waits before write | B venter på A slipper ved roillback                                                        | 1        | 1        |
+| 5.1 | repeatable read | A read, B read, A write, A commit, B write                         | None                 | ERROR: 40001: could not serialize access due to concurrent update                          | 1        | 1        |
+| 5.2 | repeatable read | B rollback, B read                                                 | None                 | Reserved: 1, can_book: f                                                                   | 1        | 1        |
+| 5.3 | repeatable read | A read, B read, A write, commit, B write, B retry write            | B                    | Først 40001, booker ved retry                                                              | 1        | 2        |
+| 5.4 | serializable    | A read, B read, A write, commit, B write, rollback, read, write    | None                 | Først 40001, retry: The read found no available seat. No booking was written.              | 1        | 1        |
+| 6.1 | read committed  | A book, A book                                                     |                      | Første returner 1, anden returnerer 1                                                      | 1        | 1        |
+| 6.2 | read committed  | A book, B book, A commit                                           | B                    | B venter på A, så snart A committer, returnerer B samme id: 2                              | 1        | 1        |
+| 6.3 | read commited   | A book - samme request_id, anden passenger                         |                      | P0001: Passenger information does not match repeat-A                                       | 1        | 1        |
+| 6.4 | read committed  | A book -samme request_id, andet trip                               |                      | P0001: Passenger information does not match repeat-A                                       | 1        | 1        |
+| 6.5 |                 | reset, load, check                                                 |                      | Single-session checks passed. Existing experiment data was restored.                       |          |          |
+| 7.1 | read committed  | A book, B book, A commit                                           | B                    | B: ERROR:  23505: duplicate key value violates unique constraint "bookings_request_id_key" | 1        | 1        |
+| 7.2 | read committed  | Retry af B (andet trip) efter A commit                             | None                 | P0001: Passenger information does not match repeat-X                                       | 1        | 1        |
+| 7.3 | read committed  | Retry med oprindeligt trip (T-TWO)                                 | None                 | Returnerer eksisterende id: 1                                                              | 1        | 1        |
+| 7.4 | read committed  | Som 7.1, men A rollback (repeat-Y)                                 | B                    | B venter på transactionid, returnerer id 4, T-OTHER = 1 indtil B rollback                  | 1        | 1        |
 
 # 1: Reproduce double booking
 
@@ -206,7 +209,181 @@
 ## 6.4: Se evidence
 
 ## 6.5:
-- Et request_id er ikke relevant for at to tx booker det sidste sæde, det er relevant for retry. Derfor har vi en advisory lock
+
+- Et request_id er ikke relevant for at to tx booker det sidste sæde, det er relevant for retry. Derfor har vi en
+  advisory lock
   pr. trip som konvention. To tx vil også have forskellige id'er, så den del bliver ikke udløst.
-- Hvis vi kun tjekker om et request id eksisterer inden vi indsætter uden en constraint, ville vi have samme situation som opgave 1,
+- Hvis vi kun tjekker om et request id eksisterer inden vi indsætter uden en constraint, ville vi have samme situation
+  som opgave 1,
   hvor to tx indsætter, baseret på noget de har læst, inden den anden har indsat noget.
+
+# 7: AI-review
+
+## Prompt
+
+### Model:
+
+- Fable 5.2
+
+### Svar:
+
+```
+Uncovered case: same request_id, different trip, concurrent. Advisory lock is keyed on trip, so it does not serialize repeats of 
+  one request across trips. Prediction below is reasoned from the code, not run.                                                   
+                                                                                                                                   
+  A: BEGIN ISOLATION LEVEL READ COMMITTED;                                                                                         
+  A: SELECT lab09.book('repeat-X', 'passenger-A', 'T-TWO');    -- returns new id                                                   
+  B: BEGIN ISOLATION LEVEL READ COMMITTED;                                                                                         
+  B: SELECT lab09.book('repeat-X', 'passenger-A', 'T-OTHER');  -- waits                                                            
+  A: COMMIT;                                                                                                                       
+  B: -- ERROR 23505 duplicate key value violates unique constraint "bookings_request_id_key"                                       
+  B: ROLLBACK;                                                                                                                     
+                                                                                                                                   
+  Predicted final state                                                                                                            
+  - Bookings: one row, ('repeat-X', 'passenger-A', 'T-TWO').                                                                       
+  - Counters: T-TWO reserved_seats = 1, T-OTHER reserved_seats = 0 (B's increment rolled back with the failed statement).          
+  - SQLSTATE: B gets 23505, not P0001 "Passenger information does not match".                                                      
+  - Side effect: B burns one identity value, so next booking id has gap.                                                           
+                                                                                                                                   
+  Why: B takes lock (9009, 4), A holds (9009, 2), so no advisory wait. B's lookup cannot see A's uncommitted row, so B falls into  
+  the booking branch, increments T-OTHER, then blocks in INSERT on the unique index (pg_locks shows a transactionid wait, not      
+  advisory). A's commit turns that wait into unique violation.                                                                     
+                                                                                                                                   
+  Assumption tested: "trip advisory lock makes the request_id lookup race-free". False when the repeat names another trip. Data    
+  stays correct only because of UNIQUE (request_id). Error is timing-dependent: run B after A's commit and the same call gives     
+  P0001.                                                                                                                           
+                                                                                                                                   
+  Variant: A does ROLLBACK instead: B returns new id, one booking on T-OTHER, T-OTHER = 1, T-TWO = 0.                              
+                                                                                                                                   
+  Fix if wanted: lock on request first, e.g. pg_advisory_xact_lock(hashtextextended(p_request_id, 0)) before the trip lock, or     
+  catch unique_violation and re-run the lookup.
+```
+
+### Forudsigelse af test:
+- Forventer at test casen er korrekt ifølge AI svaret. Advisory lock springes over, så begge tx Else grenen med det samme,
+  hvor B så fejler på insert, fordi request_id allerede findes i bookings. 
+
+### Resultat:
+- Som forventet
+
+### Konklusion:
+- AI'en identificerede: advisorylock er pr. trip, så samme request_id mod to forskellige trips
+  serialiseres ikke. Den forudsagde 23505 i stedet for P0001, og at T-OTHER ikke blev incrementet.
+- Eksperimentet viste at B venter på A's transaktion (transactionid i pg_locks, ikke advisory) og får
+  23505 ved A's commit. Én booking, T-TWO = 1, T-OTHER = 0, ét id sprunget over. Ved A rollback
+  booker B i stedet. Retry efter 23505 giver P0001 (andet trip) eller det eksisterende id (samme trip).
+  Data er altså korrekt på grund af UNIQUE (request_id), fejl afhænger af timing.
+- Forslaget accepteres som testcase. Funktionen ændres ikke: retry på 23505 er nok.
+- Ikke testet: requestlock som fix, samme med REPEATABLE READ/SERIALIZABLE, retry i en
+  rigtig klient, og en aflysning af trippet mellem funktionens read og UPDATE.
+
+### Prompt:
+
+````text
+Review this PostgreSQL 17 booking function for concurrency and repeated-request errors.
+
+Schema:
+
+```sql
+CREATE TABLE lab09.trips (
+    id text PRIMARY KEY,
+    status text NOT NULL CHECK (status IN ('Scheduled', 'Cancelled')),
+    capacity integer NOT NULL CHECK (capacity > 0),
+    reserved_seats integer NOT NULL DEFAULT 0,
+    CHECK (reserved_seats >= 0 AND reserved_seats <= capacity)
+);
+
+CREATE TABLE lab09.bookings (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    request_id text NOT NULL UNIQUE CHECK (length(request_id) > 0),
+    passenger_id text NOT NULL CHECK (length(passenger_id) > 0),
+    trip_id text NOT NULL REFERENCES lab09.trips(id),
+    booked_at timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO lab09.trips (id, status, capacity) VALUES
+    ('T-LAST', 'Scheduled', 1),
+    ('T-TWO', 'Scheduled', 2),
+    ('T-CANCELLED', 'Cancelled', 1),
+    ('T-OTHER', 'Scheduled', 2);
+```
+
+Function (runs inside the caller's transaction, never commits itself):
+
+```sql
+CREATE OR REPLACE FUNCTION lab09.book(
+    p_request_id text,
+    p_passenger_id text,
+    p_trip_id text
+)
+RETURNS bigint
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_trip_id    text;
+    v_booking_id bigint;
+    v_seen_reserved int;
+    v_capacity int;
+    v_trip_key int = CASE p_trip_id WHEN 'T-LAST' then 1 WHEN 'T-TWO' then 2 WHEN 'T-CANCELLED' then 3 WHEN 'T-OTHER' then 4 ELSE NULL END;
+    v_existing_id bigint;
+    v_existing_passenger_id text;
+    v_existing_trip_id text;
+BEGIN
+    PERFORM pg_advisory_xact_lock(9009, v_trip_key);
+    SELECT id, passenger_id, trip_id
+    INTO v_existing_id, v_existing_passenger_id, v_existing_trip_id FROM lab09.bookings
+    WHERE request_id = p_request_id;
+
+    IF FOUND AND p_passenger_id = v_existing_passenger_id AND p_trip_id = v_existing_trip_id THEN
+        RETURN v_existing_id;
+    ELSIF FOUND THEN
+        RAISE EXCEPTION 'Passenger information does not match %', p_request_id;
+    ELSE
+
+    SELECT reserved_seats, capacity
+        INTO v_seen_reserved, v_capacity
+    FROM lab09.trips
+    WHERE id = p_trip_id and status = 'Scheduled';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Trip not found %', p_trip_id;
+    END IF;
+
+    IF v_seen_reserved >= v_capacity THEN
+        RAISE EXCEPTION 'No seat available on trip %', p_trip_id;
+    END IF;
+
+    UPDATE lab09.trips
+    SET reserved_seats = reserved_seats + 1
+    WHERE id = p_trip_id
+    RETURNING id INTO v_trip_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'No seat available on trip %', p_trip_id;
+    END IF;
+
+    INSERT INTO lab09.bookings (request_id, passenger_id, trip_id)
+    VALUES (p_request_id, p_passenger_id, v_trip_id)
+    RETURNING id INTO v_booking_id;
+
+    RETURN v_booking_id;
+END IF;
+END;
+$$;
+```
+
+Here is one two session experiment, including statement order and output (fresh fixture, READ COMMITTED in both sessions):
+
+```
+A: BEGIN ISOLATION LEVEL READ COMMITTED;
+A: SELECT lab09.book('repeat-A', 'passenger-A', 'T-TWO');   -- returns 2
+B: BEGIN ISOLATION LEVEL READ COMMITTED;
+B: SELECT lab09.book('repeat-A', 'passenger-A', 'T-TWO');   -- waits
+A: COMMIT;
+B: -- returns 2 (same booking id as A)
+B: COMMIT;
+Result: T-TWO reserved_seats = 1, one booking row for request 'repeat-A'.
+```
+
+Find one case this test does not cover. Give an exact A/B schedule and predict the final bookings, counter and any SQLSTATE. State the assumption your suggestion tests.
+````
