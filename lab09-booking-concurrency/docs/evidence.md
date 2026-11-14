@@ -1,21 +1,29 @@
-| #   | Isolation      | Order                                                              | Waits                | Errors & State                                                           | Reserved | Bookings |
-|-----|----------------|--------------------------------------------------------------------|----------------------|--------------------------------------------------------------------------|----------|----------|
-| 1   | read committed | A read, B read, A write + commit, B write + commit                 | None                 | None                                                                     | 1        | 2        |
-| 1.1 | read committed | A read, B read, A write + commit, B write                          | None                 | 23514 violates "trips_check"                                             | 1        | 1        |
-| 2   | read committed | A read, B read, A update, b update, A commit, B commit             | B waits              | Så snart A committer, returnerer B INSERT 0 0                            | 1        | 1        |
-| 2.1 | read committed | A begin + book, B begin + book, A commit, B rollback               | B waits              | Når a committer giver B: ERROR:  P0001: No seat available on trip T-LAST | 1        | 1        |
-| 2.2 | read committed | A begin + book, B begin + book, A rollback, B commit               | B waits              | Når a aborter, får B en returværdi, og er klar til at committe.          | 1        | 1        |
-| 3.1 | read committed | A read + lock, B read, A book, A commit                            | B waits after read   | Når a committer, returnere B No seat available on trip                   | 1        | 1        |
-| 3.2 | read committed | A read + lock, B read, A book + rollback, B book                   | None                 | B venter ikke på A, begge booker                                         | 1        | 1        |
-| 3.3 | read committed | A read, B read, A commit, B commit                                 | B                    | B venter på A, selvom tx forsøger at booke et andet trip                 | 2        | 2        |
-| 3.4 | read committed | A read, B read, A rollback, B commit                               | B                    | B venter på A som i 3.3                                                  | 1        | 1        |
-| 3.5 | read committed | A begin, A book, B unsafe read, B unsafe write, A commit, B commit | B                    | B venter nu ikke med at læse, men venter stadig på at kunne update       | 1        | 2        |
-| 3.6 | read committed | A T-LAST, B T-OTHER, A T-OTHER, B T-LAST                           | A                    | ERROR:  40P01: deadlock detected                                         |          |          |
-| 4.1 | read committed | A read, B read, A write, A commit, B write, B rollback             | B                    | Reservation failed: trip values have changed                             | 1        | 1        |
-| 4.2 | read committed | B rollback, B read, B write, B commit                              |                      | B læser værdien igen og kan booke                                        | 2        | 2        |
-| 4.3 | read committed | A read, B read, A write, B write, A rollback, B commit             | B waits before write | B venter på A slipper ved roillback                                      | 1        | 1        |
-|     |                |                                                                    |                      |                                                                          |          |          |
-|     |                |                                                                    |                      |                                                                          |          |          |
+| #   | Isolation       | Order                                                              | Waits                | Errors & State                                                                | Reserved | Bookings |
+|-----|-----------------|--------------------------------------------------------------------|----------------------|-------------------------------------------------------------------------------|----------|----------|
+| 1   | read committed  | A read, B read, A write + commit, B write + commit                 | None                 | None                                                                          | 1        | 2        |
+| 1.1 | read committed  | A read, B read, A write + commit, B write                          | None                 | 23514 violates "trips_check"                                                  | 1        | 1        |
+| 2   | read committed  | A read, B read, A update, b update, A commit, B commit             | B waits              | Så snart A committer, returnerer B INSERT 0 0                                 | 1        | 1        |
+| 2.1 | read committed  | A begin + book, B begin + book, A commit, B rollback               | B waits              | Når a committer giver B: ERROR:  P0001: No seat available on trip T-LAST      | 1        | 1        |
+| 2.2 | read committed  | A begin + book, B begin + book, A rollback, B commit               | B waits              | Når a aborter, får B en returværdi, og er klar til at committe.               | 1        | 1        |
+| 3.1 | read committed  | A read + lock, B read, A book, A commit                            | B waits after read   | Når a committer, returnere B No seat available on trip                        | 1        | 1        |
+| 3.2 | read committed  | A read + lock, B read, A book + rollback, B book                   | None                 | B venter ikke på A, begge booker                                              | 1        | 1        |
+| 3.3 | read committed  | A read, B read, A commit, B commit                                 | B                    | B venter på A, selvom tx forsøger at booke et andet trip                      | 2        | 2        |
+| 3.4 | read committed  | A read, B read, A rollback, B commit                               | B                    | B venter på A som i 3.3                                                       | 1        | 1        |
+| 3.5 | read committed  | A begin, A book, B unsafe read, B unsafe write, A commit, B commit | B                    | B venter nu ikke med at læse, men venter stadig på at kunne update            | 1        | 2        |
+| 3.6 | read committed  | A T-LAST, B T-OTHER, A T-OTHER, B T-LAST                           | A                    | ERROR:  40P01: deadlock detected                                              |          |          |
+| 4.1 | read committed  | A read, B read, A write, A commit, B write, B rollback             | B                    | Reservation failed: trip values have changed                                  | 1        | 1        |
+| 4.2 | read committed  | B rollback, B read, B write, B commit                              |                      | B læser værdien igen og kan booke                                             | 2        | 2        |
+| 4.3 | read committed  | A read, B read, A write, B write, A rollback, B commit             | B waits before write | B venter på A slipper ved roillback                                           | 1        | 1        |
+| 5.1 | repeatable read | A read, B read, A write, A commit, B write                         | None                 | ERROR: 40001: could not serialize access due to concurrent update             | 1        | 1        |
+| 5.2 | repeatable read | B rollback, B read                                                 | None                 | Reserved: 1, can_book: f                                                      | 1        | 1        |
+| 5.3 | repeatable read | A read, B read, A write, commit, B write, B retry write            | B                    | Først 40001, booker ved retry                                                 | 1        | 2        |
+| 5.4 | serializable    | A read, B read, A write, commit, B write, rollback, read, write    | None                 | Først 40001, retry: The read found no available seat. No booking was written. | 1        | 1        |
+|     |                 |                                                                    |                      |                                                                               |          |          |
+|     |                 |                                                                    |                      |                                                                               |          |          |
+|     |                 |                                                                    |                      |                                                                               |          |          |
+|     |                 |                                                                    |                      |                                                                               |          |          |
+|     |                 |                                                                    |                      |                                                                               |          |          |
+|     |                 |                                                                    |                      |                                                                               |          |          |
 
 # 1: Reproduce double booking
 
@@ -112,15 +120,68 @@
   pladser.
 
 ## 4.2 Optimistic: Rollback B, try again
+
 - B læser reserved seats igen og får 1, herefter lykkedes B's update.
 
 ## 4.3 Optimistic: Rollback A
+
 - Opfører sig på samme måde som conditional update fra opgave 2, så der er stadig en row-lock i spil her.
-- Med udgangspunkt i T-TWO, så vil conditional stadig booke med tx B, efter A har frigivet låsen. I denne version kræver det et
+- Med udgangspunkt i T-TWO, så vil conditional stadig booke med tx B, efter A har frigivet låsen. I denne version kræver
+  det et
   retry, fordi tx B rammer 0 rækker: "values have changed".
 
 ## Version column
+
 - Forskellen på count check og version kan ses hvis vi inddrager en tredje tx C som returnerer en billet mellem A og B.
-- Hvis der er 1 billet tilbage, ud af 2 pladser og A booker den sidste, mens C og B venter på at kunne skrive. Efter A så returnerer
-  C en billet, hvorefter B forsøger at booke. Med count, ville tx B få lov at booke, fordi der er en ledig billet, med version og optimistisk tjek,
+- Hvis der er 1 billet tilbage, ud af 2 pladser og A booker den sidste, mens C og B venter på at kunne skrive. Efter A
+  så returnerer
+  C en billet, hvorefter B forsøger at booke. Med count, ville tx B få lov at booke, fordi der er en ledig billet, med
+  version og optimistisk tjek,
   ville B kræve et retry, fordi versions nummeret er blevet incremented.
+
+# 5: Compare isolation levels
+
+## 5.1: Unsafe with repeatable read
+
+- Read committed tager den nyeste committede række og fortsætter, mens repeatable read nægter og giver 40001.
+- I opgave 1 gik B's update bare igennem. Repeatable read bruger et snapshot for hele
+  transaktionen.
+
+## 5.3: Retry only write
+
+- Hvis tx B kun retrier write, er dobbeltbookingen tilbage. Det er nødvendigt at retry hele transaktionen, altså både
+  read og write.
+
+## 5.4: Serializable
+
+- Første gang B forsøger at write får den ERROR: 40001, fordi noget er blevet modificeret imens.
+- Efter retry af hele transaktionen får B: The read found no available seat. No booking was written, fordi read nu
+  aflæser den
+  korrekte værdi, og write derfor agerer ud fra den, i stedet for en forældet snapshot.
+
+- RR og Ser. opfører sig ens her, men i RR er Serialization Anomaly stadig en mulighed. 
+- Ifølge docs opfører de sig også ens, på nær ekstra monitorering ift. den nævnte anomali. 
+
+# Does protecting this shared counter prove that all multi-row business rules are safe?
+
+- Nej, repeatable read vil beskytte mod at to transaktioner incrementer counter. Hvis vi har en regel der hedder, at én passager, ikke
+  kan have to bookinger til hver sin afgang, hvis de ligger i samme tidsrum, beskytter RR ikke. Fordi de træffer en beslutning ud fra den samme read,
+  men skriver til forskellige rækker.
+
+- RR beskytter counter, fordi begge tx skriver til samme række, og RR opdaterer ikke en række, der er ændret efter snapshottet. 
+  Så snapshottet beskytter ikke noget.
+- Ser. sørger for at det der blev læst, ikke blev ændret af en anden tx, sådan at det ikke ville give samme resultat, at køre det en efter en -
+  for hvis det blev kørt en efter en, ville B se at A havde indsat en booking, før B læste bookings.
+- Så hvis de begge havde læst en passagers bookinger, og ud fra det, hver skriver en booking, på hver sin rute, vil det give en fejl,
+  fordi det som der blev læst, nu er ændret. 
+
+# 40001 for each level
+
+- Read committed: Det er kun RR og Ser. der får 40001, fordi RC kun læser det nyeste.
+  RR holder styr på writes, Ser. både reads og writes.
+- Repeatable read: Her ville jeg gentage hele tx, men ikke med payment, medmindre payments havde en idempotence key, som payment provider håndterede.
+  antal retries kunne være 3, så vi har en buffer på et ekstra forsøg. Brugeren burde ikke se andet end en loading bar, da det er implementerings deltaljer.
+  Hvis alle forsøg fejler, ville brugeren modtage en besked med at noget gik galt med booking, og at de skal prøve igen.
+  Hvis betalingen lykkedes inde i tx, men bookingen fejler efter, skal der være et fallback/final hvor betaling returneres, men først efter at bookingen har brugt sine retries.
+- Hvis betaling ligger i loopet, uden idempotence key, vil der i værste fald blive trukket penge 3 gange, hvilke rollback ikke kan gøre noget ved.
+- Serializable: Samme som RR.
