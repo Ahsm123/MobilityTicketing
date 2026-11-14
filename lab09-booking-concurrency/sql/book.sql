@@ -14,8 +14,21 @@ DECLARE
     v_seen_reserved int;
     v_capacity int;
     v_trip_key int = CASE p_trip_id WHEN 'T-LAST' then 1 WHEN 'T-TWO' then 2 WHEN 'T-CANCELLED' then 3 WHEN 'T-OTHER' then 4 ELSE NULL END;
+    v_existing_id bigint;
+    v_existing_passenger_id text;
+    v_existing_trip_id text;
 BEGIN
     PERFORM pg_advisory_xact_lock(9009, v_trip_key);
+    SELECT id, passenger_id, trip_id 
+    INTO v_existing_id, v_existing_passenger_id, v_existing_trip_id FROM lab09.bookings
+    WHERE request_id = p_request_id;
+    
+    IF FOUND AND p_passenger_id = v_existing_passenger_id AND p_trip_id = v_existing_trip_id THEN
+        RETURN v_existing_id;
+    ELSIF FOUND THEN
+        RAISE EXCEPTION 'Passenger information does not match %', p_request_id;
+    ELSE
+    
     SELECT reserved_seats, capacity
         INTO v_seen_reserved, v_capacity
     FROM lab09.trips
@@ -43,5 +56,6 @@ BEGIN
     RETURNING id INTO v_booking_id;
 
     RETURN v_booking_id;
+END IF;
 END;
 $$;

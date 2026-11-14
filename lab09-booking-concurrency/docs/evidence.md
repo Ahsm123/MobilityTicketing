@@ -18,11 +18,11 @@
 | 5.2 | repeatable read | B rollback, B read                                                 | None                 | Reserved: 1, can_book: f                                                      | 1        | 1        |
 | 5.3 | repeatable read | A read, B read, A write, commit, B write, B retry write            | B                    | Først 40001, booker ved retry                                                 | 1        | 2        |
 | 5.4 | serializable    | A read, B read, A write, commit, B write, rollback, read, write    | None                 | Først 40001, retry: The read found no available seat. No booking was written. | 1        | 1        |
-|     |                 |                                                                    |                      |                                                                               |          |          |
-|     |                 |                                                                    |                      |                                                                               |          |          |
-|     |                 |                                                                    |                      |                                                                               |          |          |
-|     |                 |                                                                    |                      |                                                                               |          |          |
-|     |                 |                                                                    |                      |                                                                               |          |          |
+| 6.1 | read committed  | A book, A book                                                     |                      | Første returner 1, anden returnerer 1                                         | 1        | 1        |
+| 6.2 | read committed  | A book, B book, A commit                                           | B                    | B venter på A, så snart A committer, returnerer B samme id: 2                 | 1        | 1        |
+| 6.3 | read commited   | A book - samme request_id, anden passenger                         |                      | P0001: Passenger information does not match repeat-A                          | 1        | 1        |
+| 6.4 | read committed  | A book -samme request_id, andet trip                               |                      | P0001: Passenger information does not match repeat-A                          | 1        | 1        |
+| 6.5 |                 | reset, load, check                                                 |                      | Single-session checks passed. Existing experiment data was restored.          |          |          |
 |     |                 |                                                                    |                      |                                                                               |          |          |
 
 # 1: Reproduce double booking
@@ -159,29 +159,54 @@
   aflæser den
   korrekte værdi, og write derfor agerer ud fra den, i stedet for en forældet snapshot.
 
-- RR og Ser. opfører sig ens her, men i RR er Serialization Anomaly stadig en mulighed. 
-- Ifølge docs opfører de sig også ens, på nær ekstra monitorering ift. den nævnte anomali. 
+- RR og Ser. opfører sig ens her, men i RR er Serialization Anomaly stadig en mulighed.
+- Ifølge docs opfører de sig også ens, på nær ekstra monitorering ift. den nævnte anomali.
 
 # Does protecting this shared counter prove that all multi-row business rules are safe?
 
-- Nej, repeatable read vil beskytte mod at to transaktioner incrementer counter. Hvis vi har en regel der hedder, at én passager, ikke
-  kan have to bookinger til hver sin afgang, hvis de ligger i samme tidsrum, beskytter RR ikke. Fordi de træffer en beslutning ud fra den samme read,
+- Nej, repeatable read vil beskytte mod at to transaktioner incrementer counter. Hvis vi har en regel der hedder, at én
+  passager, ikke
+  kan have to bookinger til hver sin afgang, hvis de ligger i samme tidsrum, beskytter RR ikke. Fordi de træffer en
+  beslutning ud fra den samme read,
   men skriver til forskellige rækker.
 
-- RR beskytter counter, fordi begge tx skriver til samme række, og RR opdaterer ikke en række, der er ændret efter snapshottet. 
+- RR beskytter counter, fordi begge tx skriver til samme række, og RR opdaterer ikke en række, der er ændret efter
+  snapshottet.
   Så snapshottet beskytter ikke noget.
-- Ser. sørger for at det der blev læst, ikke blev ændret af en anden tx, sådan at det ikke ville give samme resultat, at køre det en efter en -
+- Ser. sørger for at det der blev læst, ikke blev ændret af en anden tx, sådan at det ikke ville give samme resultat, at
+  køre det en efter en -
   for hvis det blev kørt en efter en, ville B se at A havde indsat en booking, før B læste bookings.
-- Så hvis de begge havde læst en passagers bookinger, og ud fra det, hver skriver en booking, på hver sin rute, vil det give en fejl,
-  fordi det som der blev læst, nu er ændret. 
+- Så hvis de begge havde læst en passagers bookinger, og ud fra det, hver skriver en booking, på hver sin rute, vil det
+  give en fejl,
+  fordi det som der blev læst, nu er ændret.
 
 # 40001 for each level
 
 - Read committed: Det er kun RR og Ser. der får 40001, fordi RC kun læser det nyeste.
   RR holder styr på writes, Ser. både reads og writes.
-- Repeatable read: Her ville jeg gentage hele tx, men ikke med payment, medmindre payments havde en idempotence key, som payment provider håndterede.
-  antal retries kunne være 3, så vi har en buffer på et ekstra forsøg. Brugeren burde ikke se andet end en loading bar, da det er implementerings deltaljer.
+- Repeatable read: Her ville jeg gentage hele tx, men ikke med payment, medmindre payments havde en idempotence key, som
+  payment provider håndterede.
+  antal retries kunne være 3, så vi har en buffer på et ekstra forsøg. Brugeren burde ikke se andet end en loading bar,
+  da det er implementerings deltaljer.
   Hvis alle forsøg fejler, ville brugeren modtage en besked med at noget gik galt med booking, og at de skal prøve igen.
-  Hvis betalingen lykkedes inde i tx, men bookingen fejler efter, skal der være et fallback/final hvor betaling returneres, men først efter at bookingen har brugt sine retries.
-- Hvis betaling ligger i loopet, uden idempotence key, vil der i værste fald blive trukket penge 3 gange, hvilke rollback ikke kan gøre noget ved.
+  Hvis betalingen lykkedes inde i tx, men bookingen fejler efter, skal der være et fallback/final hvor betaling
+  returneres, men først efter at bookingen har brugt sine retries.
+- Hvis betaling ligger i loopet, uden idempotence key, vil der i værste fald blive trukket penge 3 gange, hvilke
+  rollback ikke kan gøre noget ved.
 - Serializable: Samme som RR.
+
+# 6: Handle repeated requests
+
+## 6.1: Se evidence
+
+## 6.2: Se evidence
+
+## 6.3: Se evidence
+
+## 6.4: Se evidence
+
+## 6.5:
+- Et request_id er ikke relevant for at to tx booker det sidste sæde, det er relevant for retry. Derfor har vi en advisory lock
+  pr. trip som konvention. To tx vil også have forskellige id'er, så den del bliver ikke udløst.
+- Hvis vi kun tjekker om et request id eksisterer inden vi indsætter uden en constraint, ville vi have samme situation som opgave 1,
+  hvor to tx indsætter, baseret på noget de har læst, inden den anden har indsat noget.
