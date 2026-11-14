@@ -12,8 +12,6 @@ SELECT :ROW_COUNT = 1 AS ok \gset
 INSERT INTO lab09.bookings (request_id, passenger_id, trip_id)
 VALUES (:'request_id', :'passenger_id', :'trip_id')
 RETURNING id;
-
-COMMIT;
 \else
 \echo Reservation failed: trip values have changed.
 ROLLBACK;
