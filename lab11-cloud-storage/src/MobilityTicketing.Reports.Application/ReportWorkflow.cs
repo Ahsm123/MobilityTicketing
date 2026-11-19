@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace MobilityTicketing.Reports.Application;
 
 public sealed class ReportWorkflow(
@@ -8,8 +10,23 @@ public sealed class ReportWorkflow(
     private readonly IUploadReceipts _receipts = receipts;
     private readonly ExportLocation _destination = destination;
 
-    public Task<string> StageAsync(string reportId, byte[] bytes) =>
-        throw new NotImplementedException("Complete StageAsync.");
+    public async Task<string> StageAsync(string reportId, byte[] bytes)
+    {
+        _receipts.Reserve(reportId);
+        var versionId = await _storage.UploadAsync(_destination, bytes);
+        var reportInput = new ReportInput(
+            reportId,
+            _destination.Bucket,
+            _destination.Key,
+            versionId,
+            Convert.ToHexString(SHA256.HashData(bytes)).ToLower(),
+            bytes.Count(x => x == '\n')
+        );
+        
+        await _receipts.WriteAsync(reportInput);
+
+        return versionId;
+    }
 
     public Task<string> PublishAsync(string reportId, byte[] bytes, string? supersedes) =>
         throw new NotImplementedException("Complete PublishAsync.");
