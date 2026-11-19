@@ -27,17 +27,17 @@ retrying the same logical request. Save the full JSON beside these notes.
 
 ## Read-only verification
 
-| Operation ID | Earlier write outcome                                     | Verification result  | What this establishes / leaves uncertain                                                               |
-|--------------|-----------------------------------------------------------|----------------------|--------------------------------------------------------------------------------------------------------|
-| BASE-MAJ     | Acknowledged (`w: majority`, 3 kørende)                   | PresentMatches       | Gemt og bekræftet af et flertal, overlevede failover                                                   |
-| BASE-ONE     | Acknowledged (`w: 1`), skrevet 15/11                      | AbsentAtVerification | Ikke et replikeringsresultat: volumes blev oprettet på ny 16/11, så de gamle data findes ikke          |
-| FAILOVER-01  | Acknowledged (`w: majority`, ny primary, term 2)          | PresentMatches       | Ny primary (mongo2) tog imod writes efter failover                                                     |
-| FAILOVER-02  | Acknowledged (`w: majority`, ny primary, term 2)          | PresentMatches       | Samme som FAILOVER-01, to af tre er nok til majority                                                   |
-| ACK-ALL      | UnknownWriteOutcome (WriteConcernFailed, `n: 1`, `ok: 1`) | PresentMatches       | Fejlen var fordi der ikke blev bekrædtet fra 3, dokumentet var gemt og nåede majority (2 af 3)         |
-| NO-MAJ-ONE   | UnknownWriteOutcome (ingen primary, `response: null`)     | AbsentAtVerification | Write nåede aldrig en primary, ændret `w` hjælper ikke uden primary                                    |
-| NO-MAJ-MAJ   | UnknownWriteOutcome (ingen primary)                       | AbsentAtVerification | Samme som NO-MAJ-ONE                                                                                   |
-| RECOVERED-01 | Acknowledged (`w: majority`, efter genopretning)          | PresentMatches       | Sættet er raskt igen                                                                                   |
-| NEVER-SENT   | (ikke sendt, kontrol)                                     | AbsentAtVerification | Viser hvordan "aldrig skrevet" ser ud. Fravær nu beviser ikke, at et ukendt udfald aldrig kan dukke op |
+| Operation ID | Earlier write outcome                                     | Verification result   | What this establishes / leaves uncertain                                                               |
+|--------------|-----------------------------------------------------------|-----------------------|--------------------------------------------------------------------------------------------------------|
+| BASE-MAJ     | Acknowledged (`w: majority`, 3 kørende)                   | PresentMatches        | Gemt og bekræftet af et flertal, overlevede failover                                                   |
+| BASE-ONE     | Acknowledged (`w: 1`), skrevet 15/11                      | AbsentAtVeerification | Ikke et replikeringsresultat: volumes blev oprettet på ny 16/11, så de gamle data findes ikke          |
+| FAILOVER-01  | Acknowledged (`w: majority`, ny primary, term 2)          | PresentMatches        | Ny primary (mongo2) tog imod writes efter failover                                                     |
+| FAILOVER-02  | Acknowledged (`w: majority`, ny primary, term 2)          | PresentMatches        | Samme som FAILOVER-01, to af tre er nok til majority                                                   |
+| ACK-ALL      | UnknownWriteOutcome (WriteConcernFailed, `n: 1`, `ok: 1`) | PresentMatches        | Fejlen var fordi der ikke blev bekrædtet fra 3, dokumentet var gemt og nåede majority (2 af 3)         |
+| NO-MAJ-ONE   | UnknownWriteOutcome (ingen primary, `response: null`)     | AbsentAtVerification  | Write nåede aldrig en primary, ændret `w` hjælper ikke uden primary                                    |
+| NO-MAJ-MAJ   | UnknownWriteOutcome (ingen primary)                       | AbsentAtVerification  | Samme som NO-MAJ-ONE                                                                                   |
+| RECOVERED-01 | Acknowledged (`w: majority`, efter genopretning)          | PresentMatches        | Sættet er raskt igen                                                                                   |
+| NEVER-SENT   | (ikke sendt, kontrol)                                     | AbsentAtVerification  | Viser hvordan "aldrig skrevet" ser ud. Fravær nu beviser ikke, at et ukendt udfald aldrig kan dukke op |
 
 ## Application policy
 
