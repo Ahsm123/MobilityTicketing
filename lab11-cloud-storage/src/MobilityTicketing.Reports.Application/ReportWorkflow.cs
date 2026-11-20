@@ -28,15 +28,25 @@ public sealed class ReportWorkflow(
         return versionId;
     }
 
-    public Task<string> PublishAsync(string reportId, byte[] bytes, string? supersedes) =>
-        throw new NotImplementedException("Complete PublishAsync.");
+    public async Task<string> PublishAsync(string reportId, byte[] bytes, string? supersedes)
+    {
+        await StageAsync(reportId, bytes);
+        var result = await RecoverAsync(reportId, supersedes);
+        return result;
+    }
 
-    public Task<string> RecoverAsync(string reportId, string? supersedes) =>
-        throw new NotImplementedException("Complete RecoverAsync.");
+    public async Task<string> RecoverAsync(string reportId, string? supersedes)
+    {
+        var receipt = await _receipts.ReadAsync(reportId);
+        var report = await _catalogue.FindAsync(reportId);
+    }
 
     public Task<Verification> VerifyAsync(string reportId) =>
         throw new NotImplementedException("Complete VerifyAsync.");
 
-    private Task<Verification> CheckAsync(ReportInput input) =>
-        throw new NotImplementedException("Complete CheckAsync.");
+    private async Task<Verification> CheckAsync(ReportInput input)
+    {
+        var bytes = await _storage.ReadVersionAsync(new ExportLocation(input.Bucket, input.Key), input.VersionId);
+        var receipt = _receipts.ReadAsync(input.ReportId);
+    }
 }
