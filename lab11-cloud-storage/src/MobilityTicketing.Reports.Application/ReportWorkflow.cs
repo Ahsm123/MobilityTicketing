@@ -3,7 +3,10 @@ using System.Security.Cryptography;
 namespace MobilityTicketing.Reports.Application;
 
 public sealed class ReportWorkflow(
-    IReportObjectStore storage, IReportCatalogue catalogue, IUploadReceipts receipts, ExportLocation destination)
+    IReportObjectStore storage,
+    IReportCatalogue catalogue,
+    IUploadReceipts receipts,
+    ExportLocation destination)
 {
     private readonly IReportObjectStore _storage = storage;
     private readonly IReportCatalogue _catalogue = catalogue;
@@ -14,15 +17,17 @@ public sealed class ReportWorkflow(
     {
         _receipts.Reserve(reportId);
         var versionId = await _storage.UploadAsync(_destination, bytes);
+        if (string.IsNullOrWhiteSpace(versionId) || versionId is "null" or "None")
+            throw new InvalidOperationException("MissingVersionId");
         var reportInput = new ReportInput(
             reportId,
             _destination.Bucket,
             _destination.Key,
             versionId,
-            Convert.ToHexString(SHA256.HashData(bytes)).ToLower(),
-            bytes.Count(x => x == '\n')
+            Hash(bytes),
+            RowCount(bytes)
         );
-        
+
         await _receipts.WriteAsync(reportInput);
 
         return versionId;
@@ -31,22 +36,51 @@ public sealed class ReportWorkflow(
     public async Task<string> PublishAsync(string reportId, byte[] bytes, string? supersedes)
     {
         await StageAsync(reportId, bytes);
-        var result = await RecoverAsync(reportId, supersedes);
-        return result;
+        return await RecoverAsync(reportId, supersedes);
     }
 
     public async Task<string> RecoverAsync(string reportId, string? supersedes)
     {
         var receipt = await _receipts.ReadAsync(reportId);
-        var report = await _catalogue.FindAsync(reportId);
+        var result = await CheckAsync(receipt);
+        if (result != Verification.Matches)
+            throw new InvalidOperationException(result.ToString());
+        await _catalogue.SaveAsync(receipt, supersedes);
+        return receipt.VersionId;
     }
 
-    public Task<Verification> VerifyAsync(string reportId) =>
-        throw new NotImplementedException("Complete VerifyAsync.");
+    public async Task<Verification> VerifyAsync(string reportId)
+    {
+        ReportInput? report;
+        try
+        {
+            report = await _catalogue.FindAsync(reportId);
+        }
+        catch (CatalogueException)
+        {
+            return Verification.CatalogueReadFailed;
+        }
+
+        return report is null ? Verification.UnknownReport : await CheckAsync(report);
+    }
 
     private async Task<Verification> CheckAsync(ReportInput input)
     {
-        var bytes = await _storage.ReadVersionAsync(new ExportLocation(input.Bucket, input.Key), input.VersionId);
-        var receipt = _receipts.ReadAsync(input.ReportId);
+        byte[] bytes;
+        try
+        {
+            bytes = await _storage.ReadVersionAsync(new ExportLocation(input.Bucket, input.Key), input.VersionId);
+        }
+        catch (ObjectStoreException)
+        {
+            return Verification.ReadFailed;
+        }
+
+        return Hash(bytes) == input.Sha256 && RowCount(bytes) == input.RowCount
+            ? Verification.Matches
+            : Verification.Mismatch;
     }
+
+    private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+    private static int RowCount(byte[] bytes) => bytes.Count(b => b == '\n');
 }
